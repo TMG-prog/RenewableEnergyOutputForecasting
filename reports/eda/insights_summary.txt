@@ -1,0 +1,39 @@
+EDA KEY INSIGHTS SUMMARY
+========================================
+Dataset shape: 120627 rows, 33 columns
+Numeric variables analyzed: 22
+
+Strongest correlations found:
+  - temperature_celsius & feels_like_celsius: r = 0.98 (positive)
+  - wind_kph & gust_kph: r = 0.95 (positive)
+  - air_quality_us-epa-index & air_quality_gb-defra-index: r = 0.93 (positive)
+  - air_quality_PM2.5 & air_quality_us-epa-index: r = 0.80 (positive)
+  - air_quality_PM2.5 & air_quality_gb-defra-index: r = 0.77 (positive)
+
+Variability (std dev) per variable — higher = more spread:
+  - latitude: std = 24.43, mean = 19.19
+  - longitude: std = 65.79, mean = 22.00
+  - temperature_celsius: std = 9.43, mean = 21.81
+  - wind_kph: std = 11.96, mean = 13.01
+  - wind_degree: std = 103.34, mean = 169.50
+  - pressure_mb: std = 10.68, mean = 1014.11
+  - precip_mm: std = 0.58, mean = 0.14
+  - humidity: std = 24.05, mean = 65.88
+  - cloud: std = 34.02, mean = 39.92
+  - feels_like_celsius: std = 11.27, mean = 22.73
+  - visibility_km: std = 2.65, mean = 9.54
+  - uv_index: std = 3.57, mean = 3.50
+  - gust_kph: std = 14.07, mean = 18.31
+  - air_quality_Carbon_Monoxide: std = 792.02, mean = 482.30
+  - air_quality_Ozone: std = 31.30, mean = 59.37
+  - air_quality_Nitrogen_dioxide: std = 24.53, mean = 15.36
+  - air_quality_Sulphur_dioxide: std = 37.49, mean = 10.79
+  - air_quality_PM2.5: std = 38.23, mean = 24.76
+  - air_quality_PM10: std = 152.78, mean = 49.55
+  - air_quality_us-epa-index: std = 0.95, mean = 1.71
+  - air_quality_gb-defra-index: std = 2.48, mean = 2.65
+  - moon_illumination: std = 35.01, mean = 49.29
+
+NOTE: Review boxplots.png for outliers to flag to the modeling team,
+and correlation_heatmap.png / scatter_plots.png for variables
+most likely to be predictive of renewable energy output potential.
