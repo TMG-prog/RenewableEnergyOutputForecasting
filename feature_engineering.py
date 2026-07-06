@@ -8,22 +8,21 @@ def engineer_features(input_path, output_path):
             f"Could not find the input file at: {os.path.abspath(input_path)}\n"
             "Please verify Member 1's cleaned file name matches perfectly!"
         )
-
     print("⚡ Loading preprocessed weather data from nested directory...")
     df = pd.read_csv(input_path)
     
     # ─── COLUMN MAPPING ───────────────────────────────────────────────────
-    # Map Member 1's column names to what our feature engineering math expects
+    # Map initialcolumn names to what our feature engineering math expects
     df = df.rename(columns={
         'last_updated': 'datetime',
         'cloud': 'cloud_cover'
     })
     
-    # Force chronological sorting to ensure lag and rolling features align perfectly
+    # Sort by location AND time so rows aren't a mixed-up deck of countries
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df.sort_values('datetime').reset_index(drop=True)
+    df = df.sort_values(['location_name', 'datetime']).reset_index(drop=True)
     
-    print("📈 Engineering target power proxies...")
+    print("Engineering target power proxies")
     # Wind Power Proxy: Proportional to the cube of wind speed
     df['wind_power_proxy'] = df['wind_kph'] ** 3
     
@@ -31,7 +30,12 @@ def engineer_features(input_path, output_path):
     clear_factor = 1.0 - (df['cloud_cover'] / 100.0)
     df['solar_power_proxy'] = df['uv_index'] * clear_factor
     
-    print("🔄 Encoding cyclical time coordinates...")
+    print("Grouping data for country-level representation")
+    # Calculates the regional daily baseline for that country on that specific date
+    df['country_daily_mean_temp'] = df.groupby(['country', 'datetime'])['temperature_celsius'].transform('mean')
+    df['country_daily_mean_wind'] = df.groupby(['country', 'datetime'])['wind_kph'].transform('mean')
+    
+    print("Encoding cyclical time coordinates")
     # Convert hours and days into sine/cosine wave coordinates
     df['hour'] = df['datetime'].dt.hour
     df['day_of_year'] = df['datetime'].dt.dayofyear
@@ -41,19 +45,21 @@ def engineer_features(input_path, output_path):
     df['day_sin'] = np.sin(2 * np.pi * df['day_of_year'] / 365.25)
     df['day_cos'] = np.cos(2 * np.pi * df['day_of_year'] / 365.25)
     
-    print("⏳ Building historical lag features (1h, 6h, 24h)...")
+    print("Building isolated daily lag features")
+    # Grouping by location_name prevents tracking errors across different regional timelines
     target_lags = ['wind_kph', 'uv_index', 'cloud_cover', 'temperature_celsius']
     for col in target_lags:
-        df[f'{col}_lag_1h'] = df[col].shift(1)
-        df[f'{col}_lag_6h'] = df[col].shift(6)
-        df[f'{col}_lag_24h'] = df[col].shift(24)
+        df[f'{col}_lag_1d'] = df.groupby('location_name')[col].shift(1)
+        df[f'{col}_lag_2d'] = df.groupby('location_name')[col].shift(2)
         
-    print("📊 Calculating 24-hour rolling metrics...")
+    print("Calculating isolated 3-day rolling metrics")
+    # Calculates rolling updates locally so Location A doesn't roll into Location B's rows
     for col in ['wind_kph', 'temperature_celsius']:
-        df[f'{col}_roll_mean_24h'] = df[col].rolling(window=24).mean()
-        df[f'{col}_roll_std_24h'] = df[col].rolling(window=24).std()
+        df[f'{col}_roll_mean_3d'] = df.groupby('location_name')[col].transform(lambda x: x.rolling(window=3, min_periods=1).mean())
+        # Apply standard deviation computation first, then safely resolve initial NaN edge cases to 0
+        df[f'{col}_roll_std_3d'] = df.groupby('location_name')[col].transform(lambda x: x.rolling(window=3, min_periods=1).std()).fillna(0)
         
-    # Clean up empty boundary rows introduced by rolling operations
+    # Clean up empty boundary rows introduced by shifting operations
     df = df.dropna().reset_index(drop=True)
     
     # Drop unneeded raw helper columns
