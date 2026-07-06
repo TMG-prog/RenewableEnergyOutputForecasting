@@ -1,0 +1,70 @@
+{
+    "model_type": "Random Forest Regressor",
+    "split_method": "strict_chronological",
+    "training_rows": 96107,
+    "testing_rows": 24041,
+    "numeric_feature_count": 34,
+    "numeric_features": [
+        "latitude",
+        "longitude",
+        "temperature_celsius",
+        "wind_degree",
+        "pressure_mb",
+        "precip_mm",
+        "humidity",
+        "feels_like_celsius",
+        "visibility_km",
+        "gust_kph",
+        "air_quality_Carbon_Monoxide",
+        "air_quality_Ozone",
+        "air_quality_Nitrogen_dioxide",
+        "air_quality_Sulphur_dioxide",
+        "air_quality_PM2.5",
+        "air_quality_PM10",
+        "air_quality_us-epa-index",
+        "air_quality_gb-defra-index",
+        "moon_illumination",
+        "country_daily_mean_temp",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+        "wind_kph_lag_1d",
+        "wind_kph_lag_2d",
+        "uv_index_lag_1d",
+        "uv_index_lag_2d",
+        "cloud_cover_lag_1d",
+        "cloud_cover_lag_2d",
+        "temperature_celsius_lag_1d",
+        "temperature_celsius_lag_2d",
+        "temperature_celsius_roll_mean_3d",
+        "temperature_celsius_roll_std_3d"
+    ],
+    "wind_target_transformation": "cube_root",
+    "wind_model": {
+        "mae": 1705.825537332863,
+        "rmse": 6272.068724666995,
+        "r2_score": 0.6698272954450777,
+        "training_time_seconds": 2.7900694999843836,
+        "best_params": {
+            "regressor__model__n_estimators": 80,
+            "regressor__model__min_samples_split": 10,
+            "regressor__model__min_samples_leaf": 4,
+            "regressor__model__max_features": "sqrt",
+            "regressor__model__max_depth": 14
+        }
+    },
+    "solar_model": {
+        "mae": 0.46120407705730787,
+        "rmse": 0.8351750494631857,
+        "r2_score": 0.834627745975637,
+        "training_time_seconds": 2.5550694999983534,
+        "best_params": {
+            "model__n_estimators": 80,
+            "model__min_samples_split": 10,
+            "model__min_samples_leaf": 4,
+            "model__max_features": "sqrt",
+            "model__max_depth": 14
+        }
+    }
+}
