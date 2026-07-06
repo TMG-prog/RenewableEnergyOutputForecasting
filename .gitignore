@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+
+# Large generated reports
+reports/**/*.png
+reports/**/*.csv
+
+# Ignore Python cache
+.cache/
+
+
+
+# Ignore build folders
+dist/
+build/

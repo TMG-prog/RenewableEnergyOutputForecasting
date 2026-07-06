@@ -1,0 +1,22 @@
+{
+    "model_type": "Decision Tree Regressor",
+    "numeric_feature_count": 34,
+    "wind_model": {
+        "mae": 1373.0947152912834,
+        "rmse": 4179.225196057954,
+        "r2_score": 0.8534077206854407,
+        "best_params": {
+            "max_depth": 10,
+            "min_samples_leaf": 5
+        }
+    },
+    "solar_model": {
+        "mae": 0.4935666895940236,
+        "rmse": 0.9547448493090896,
+        "r2_score": 0.7838863137579268,
+        "best_params": {
+            "max_depth": 10,
+            "min_samples_leaf": 30
+        }
+    }
+}
