@@ -23,7 +23,7 @@ Box plots
 Line charts
 Scatter plots
 Summarize key insights from the data.
-Member 4: Linear Regression Model
+# Member 4: Linear Regression Model
 Train a Linear Regression model to predict renewable energy generation potential.
 Tune model parameters if necessary.
 Evaluate the model using:
