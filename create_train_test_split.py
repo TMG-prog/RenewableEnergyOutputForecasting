@@ -168,9 +168,7 @@ def main() -> None:
         test_country = country_df[
         country_df["datetime"] >= cutoff_datetime
     ]
-
         train_parts.append(train_country)
-
         test_parts.append(test_country)
 
     train_df = (

@@ -67,7 +67,7 @@ EARLY_STOPPING_ROUNDS = 50
 PARAM_GRID = {
 
     "n_estimators": [100, 200],
-    "max_depth": [3, 5],
+    "max_depth": [3, 10],
     "learning_rate": [0.01, 0.1],
 
 }
