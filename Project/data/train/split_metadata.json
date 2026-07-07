@@ -1,5 +1,5 @@
 {
-    "source_file": "/home/samuel/Documents/School/4.1/pythonenv/RenewableEnergyOutputForecasting/Project/data/cleaned/processed_features.csv",
+    "source_file": "/Users/ian/4.1 Projects/Machine-Learning/RenewableEnergyOutputForecasting/Project/data/cleaned/processed_features.csv",
     "split_method": "strict_chronological",
     "requested_train_ratio": 0.8,
     "actual_train_ratio": 0.7991227486100476,
