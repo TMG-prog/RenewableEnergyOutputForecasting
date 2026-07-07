@@ -102,8 +102,8 @@ def main() -> None:
             f"{invalid_dates} rows contain invalid datetime values."
         )
 
-    # Sort chronologically.
-    # location_name is used as a stable secondary sort field.
+    # Sort the data from oldest to newest.
+    # location_name provides a stable secondary ordering.
 
     sort_columns = ["datetime"]
 
@@ -115,10 +115,21 @@ def main() -> None:
         kind="mergesort",
     ).reset_index(drop=True)
 
+    # Separate predictors and targets:
 
+    y = df[TARGET_COLUMNS].copy()
 
-    # Keep datetime for traceability.
-    # Individual models can remove or transform it later.
+    columns_to_remove = [
+        *TARGET_COLUMNS,
+        *LEAKAGE_COLUMNS,
+    ]
+
+    existing_removals = [
+        column
+        for column in columns_to_remove
+        if column in df.columns
+    ]
+
 
     # Create a strict chronological 80/20 split:
 # ---------------------------------------------
@@ -151,9 +162,8 @@ def main() -> None:
         "datetime"
     ]
 
-        train_country = country_df[
-        country_df["datetime"] < cutoff_datetime
-    ]
+    # Keep all rows with the cutoff timestamp in the test set.
+    # This prevents the same timestamp from appearing in both partitions.
 
         test_country = country_df[
         country_df["datetime"] >= cutoff_datetime
@@ -310,7 +320,7 @@ def main() -> None:
         index=False,
     )
 
-    # Save metadata describing the split:
+    # Save metadata describing the shared split:
 
     metadata = {
         "source_file": str(INPUT_FILE),

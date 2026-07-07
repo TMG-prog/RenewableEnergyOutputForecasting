@@ -2,64 +2,73 @@
 
 ## Objective
 
-Train and evaluate Linear Regression models for renewable energy generation
-potential using the shared chronological train-test split.
-
-Two separate models were developed:
-
-- Wind power proxy prediction
-- Solar power proxy prediction
+Train and evaluate separate Linear Regression models for wind and solar
+renewable energy potential using the shared chronological train-test split.
 
 ## Dataset
 
 - Training rows: 96,107
 - Testing rows: 24,041
-- Numeric predictor features: 34
+- Numeric input columns: 34
+- Categorical input columns: 10
 - Split method: Strict chronological split
 - Timestamp overlap: False
 
-## Modelling Approach
+## Preprocessing
 
-Only numeric predictor columns were used in this baseline model. Missing
-numeric values were handled using median imputation, and all predictors were
-standardized before training.
+Numeric variables were handled using median imputation and standardization.
 
-The wind power proxy was calculated as the cube of wind speed. A cube-root
-target transformation was therefore applied during training. Predictions were
-converted back to the original wind-power proxy scale before evaluation.
+Categorical variables such as country, location, timezone, weather condition,
+wind direction, and moon phase were retained and transformed using One-Hot
+Encoding. Unknown categories in the test set were ignored safely, while rare
+categories were grouped using a minimum-frequency threshold.
 
-The solar power proxy was modelled directly using standard Linear Regression.
+## Feature Selection
 
-Negative predictions were clipped to zero because renewable energy generation
-potential cannot be negative.
+Univariate regression feature selection was performed separately for the wind
+and solar models using `SelectPercentile` with `f_regression`.
+
+- Feature percentile retained: 30%
+- Selected wind features: 1268
+- Selected solar features: 1268
+
+This allows the two models to retain different predictors based on their
+individual relationships with wind and solar energy potential.
+
+## Wind Target Transformation
+
+The wind power proxy was created using wind speed cubed. A cube-root target
+transformation was applied before training so that the model learned on the
+underlying wind-speed scale. Model predictions were then cubed to return them
+to the original wind power proxy scale.
 
 ## Wind Power Proxy Results
 
-- MAE: 1764.1866
-- RMSE: 6093.9817
-- R² Score: 0.6883
-- Training time: 0.67 seconds
+- MAE: 1755.2329
+- RMSE: 6175.7861
+- R² Score: 0.6799
+- Training time: 7.67 seconds
 
 ## Solar Power Proxy Results
 
-- MAE: 0.6324
-- RMSE: 1.0620
-- R² Score: 0.7326
-- Training time: 0.54 seconds
+- MAE: 0.5653
+- RMSE: 0.9656
+- R² Score: 0.7790
+- Training time: 6.68 seconds
 
 ## Generated Deliverables
 
-- Wind Linear Regression model
-- Solar Linear Regression model
+- Wind and solar Linear Regression models
 - Prediction file
 - MAE, RMSE, and R² metrics
 - Actual-versus-predicted plots
 - Residual plots
-- Feature coefficient tables
+- Selected-feature tables
+- Coefficient tables
 - JSON metrics file
 
 ## Conclusion
 
-The two models provide a transparent linear baseline for comparison with the
-Decision Tree, Random Forest, and XGBoost regression models developed by the
-other team members.
+The updated models provide a stronger linear baseline by retaining categorical
+information and selecting the most relevant transformed features separately
+for wind and solar prediction.
