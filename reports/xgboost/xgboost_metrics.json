@@ -50,7 +50,7 @@
             "n_estimators": 100
         },
         "best_cv_score": -7059610.415255911,
-        "training_time_seconds": 0.2721403579926118
+        "training_time_seconds": 0.36543854398769327
     },
     "solar_model": {
         "mae": 0.4885272986192109,
@@ -62,6 +62,6 @@
             "n_estimators": 100
         },
         "best_cv_score": 0.7872530451959194,
-        "training_time_seconds": 0.28501746800611727
+        "training_time_seconds": 0.27247444599925075
     }
 }
