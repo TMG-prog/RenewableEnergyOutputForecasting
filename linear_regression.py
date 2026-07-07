@@ -1,13 +1,14 @@
 """
 Member 4: Linear Regression models for renewable energy potential.
 
-This script:
+This updated script:
 1. Loads the shared chronological train-test split.
-2. Selects numeric predictor columns.
-3. Trains separate Linear Regression models for wind and solar power proxies.
-4. Applies a cube-root transformation to the wind target.
-5. Evaluates both models using MAE, RMSE, and R².
-6. Saves trained models, predictions, plots, metrics, and a Markdown report.
+2. Uses both numeric and categorical predictors.
+3. One-hot encodes categorical variables.
+4. Applies univariate feature selection separately for wind and solar models.
+5. Trains separate Linear Regression models.
+6. Evaluates both models using MAE, RMSE, and R².
+7. Saves models, predictions, plots, metrics, selected features, and a report.
 """
 
 from pathlib import Path
@@ -19,7 +20,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from sklearn.compose import TransformedTargetRegressor
+from sklearn.compose import (
+    ColumnTransformer,
+    TransformedTargetRegressor,
+)
+from sklearn.feature_selection import (
+    SelectPercentile,
+    f_regression,
+)
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import (
@@ -28,7 +36,10 @@ from sklearn.metrics import (
     r2_score,
 )
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import (
+    OneHotEncoder,
+    StandardScaler,
+)
 
 
 # Configuration:
@@ -62,9 +73,15 @@ Y_TEST_PATH = DATA_DIR / "y_test.csv"
 WIND_TARGET = "wind_power_proxy"
 SOLAR_TARGET = "solar_power_proxy"
 
+# Percentage of transformed features retained by SelectPercentile.
+FEATURE_PERCENTILE = 30
+
+# Rare categories occurring fewer than this number are grouped together.
+MIN_CATEGORY_FREQUENCY = 20
+
 
 def cube_root(values):
-    """Apply a cube-root transformation."""
+    """Apply a cube-root transformation to the wind target."""
 
     return np.cbrt(values)
 
@@ -76,7 +93,7 @@ def cube_values(values):
 
 
 def load_shared_split():
-    """Load and validate the shared train-test files."""
+    """Load and validate the shared chronological split."""
 
     required_files = [
         X_TRAIN_PATH,
@@ -132,16 +149,6 @@ def load_shared_split():
             + "\n".join(missing_targets)
         )
 
-    if y_train[required_targets].isnull().any().any():
-        raise ValueError(
-            "The training targets contain missing values."
-        )
-
-    if y_test[required_targets].isnull().any().any():
-        raise ValueError(
-            "The testing targets contain missing values."
-        )
-
     print(f"X_train shape: {X_train.shape}")
     print(f"X_test shape:  {X_test.shape}")
     print(f"y_train shape: {y_train.shape}")
@@ -150,15 +157,15 @@ def load_shared_split():
     return X_train, X_test, y_train, y_test
 
 
-def prepare_numeric_features(
+def prepare_model_features(
     X_train: pd.DataFrame,
     X_test: pd.DataFrame,
 ):
     """
-    Select numeric predictor columns.
+    Prepare the modelling datasets.
 
-    Text columns such as country, location, weather descriptions,
-    directions, and moon phases are excluded from this baseline model.
+    datetime is retained only for reporting and removed from the predictors.
+    Numeric and categorical columns are identified separately.
     """
 
     if "datetime" in X_test.columns:
@@ -171,53 +178,71 @@ def prepare_numeric_features(
             name="row_id",
         )
 
-    numeric_features = X_train.select_dtypes(
+    columns_to_drop = [
+        column
+        for column in ["datetime"]
+        if column in X_train.columns
+    ]
+
+    X_train_model = X_train.drop(
+        columns=columns_to_drop
+    ).copy()
+
+    X_test_model = X_test.drop(
+        columns=columns_to_drop
+    ).copy()
+
+    numeric_features = X_train_model.select_dtypes(
         include=["number", "bool"]
     ).columns.tolist()
 
-    if not numeric_features:
+    categorical_features = X_train_model.select_dtypes(
+        include=["object", "string", "category"]
+    ).columns.tolist()
+
+    if not numeric_features and not categorical_features:
         raise ValueError(
-            "No numeric predictor columns were found."
+            "No usable predictor columns were found."
         )
 
     missing_in_test = [
         column
-        for column in numeric_features
-        if column not in X_test.columns
+        for column in X_train_model.columns
+        if column not in X_test_model.columns
     ]
 
     if missing_in_test:
         raise ValueError(
-            "The following training features are missing "
-            "from X_test:\n"
+            "The following training features are missing from X_test:\n"
             + "\n".join(missing_in_test)
         )
 
-    X_train_numeric = X_train[
-        numeric_features
-    ].copy()
-
-    X_test_numeric = X_test[
-        numeric_features
-    ].copy()
-
     print(
-        f"Numeric features selected: "
+        f"Numeric features: "
         f"{len(numeric_features)}"
     )
 
+    print(
+        f"Categorical features: "
+        f"{len(categorical_features)}"
+    )
+
     return (
-        X_train_numeric,
-        X_test_numeric,
+        X_train_model,
+        X_test_model,
         numeric_features,
+        categorical_features,
         test_datetimes,
     )
 
 
-def build_base_pipeline():
-    """Create a preprocessing and Linear Regression pipeline."""
+def build_preprocessor(
+    numeric_features,
+    categorical_features,
+):
+    """Create preprocessing for numeric and categorical variables."""
 
-    return Pipeline(
+    numeric_pipeline = Pipeline(
         steps=[
             (
                 "imputer",
@@ -227,7 +252,87 @@ def build_base_pipeline():
             ),
             (
                 "scaler",
-                StandardScaler(),
+                StandardScaler(
+                    with_mean=False
+                ),
+            ),
+        ]
+    )
+
+    categorical_pipeline = Pipeline(
+        steps=[
+            (
+                "imputer",
+                SimpleImputer(
+                    strategy="most_frequent"
+                ),
+            ),
+            (
+                "encoder",
+                OneHotEncoder(
+                    handle_unknown="ignore",
+                    min_frequency=MIN_CATEGORY_FREQUENCY,
+                    sparse_output=True,
+                ),
+            ),
+        ]
+    )
+
+    transformers = []
+
+    if numeric_features:
+        transformers.append(
+            (
+                "numeric",
+                numeric_pipeline,
+                numeric_features,
+            )
+        )
+
+    if categorical_features:
+        transformers.append(
+            (
+                "categorical",
+                categorical_pipeline,
+                categorical_features,
+            )
+        )
+
+    return ColumnTransformer(
+        transformers=transformers,
+        remainder="drop",
+        sparse_threshold=1.0,
+    )
+
+
+def build_regression_pipeline(
+    numeric_features,
+    categorical_features,
+):
+    """
+    Build the complete model pipeline.
+
+    Feature selection is fitted separately for each target because wind
+    and solar power may depend on different predictors.
+    """
+
+    preprocessor = build_preprocessor(
+        numeric_features,
+        categorical_features,
+    )
+
+    return Pipeline(
+        steps=[
+            (
+                "preprocessor",
+                preprocessor,
+            ),
+            (
+                "feature_selection",
+                SelectPercentile(
+                    score_func=f_regression,
+                    percentile=FEATURE_PERCENTILE,
+                ),
             ),
             (
                 "model",
@@ -243,27 +348,27 @@ def calculate_metrics(
 ):
     """Calculate MAE, RMSE, and R²."""
 
-    mae = mean_absolute_error(
-        y_true,
-        y_pred,
-    )
-
-    rmse = np.sqrt(
-        mean_squared_error(
-            y_true,
-            y_pred,
-        )
-    )
-
-    r2 = r2_score(
-        y_true,
-        y_pred,
-    )
-
     return {
-        "mae": float(mae),
-        "rmse": float(rmse),
-        "r2_score": float(r2),
+        "mae": float(
+            mean_absolute_error(
+                y_true,
+                y_pred,
+            )
+        ),
+        "rmse": float(
+            np.sqrt(
+                mean_squared_error(
+                    y_true,
+                    y_pred,
+                )
+            )
+        ),
+        "r2_score": float(
+            r2_score(
+                y_true,
+                y_pred,
+            )
+        ),
     }
 
 
@@ -326,22 +431,18 @@ def save_actual_vs_predicted_plot(
 
     ax.set_xlabel("Actual value")
     ax.set_ylabel("Predicted value")
-
     ax.set_title(
         f"Actual vs Predicted — {target_name}"
     )
-
     ax.legend()
     ax.grid(alpha=0.3)
 
     fig.tight_layout()
-
     fig.savefig(
         output_path,
         dpi=300,
         bbox_inches="tight",
     )
-
     plt.close(fig)
 
 
@@ -397,40 +498,93 @@ def save_residual_plot(
 
     ax.set_xlabel("Predicted value")
     ax.set_ylabel("Residual")
-
     ax.set_title(
         f"Residual Plot — {target_name}"
     )
-
     ax.grid(alpha=0.3)
 
     fig.tight_layout()
-
     fig.savefig(
         output_path,
         dpi=300,
         bbox_inches="tight",
     )
-
     plt.close(fig)
 
 
-def save_coefficient_table(
-    trained_model,
-    feature_names,
-    output_path: Path,
-):
-    """Save the Linear Regression feature coefficients."""
+def get_fitted_pipeline(trained_model):
+    """Return the fitted Pipeline from either model type."""
 
     if isinstance(
         trained_model,
         TransformedTargetRegressor,
     ):
-        fitted_pipeline = (
-            trained_model.regressor_
-        )
-    else:
-        fitted_pipeline = trained_model
+        return trained_model.regressor_
+
+    return trained_model
+
+
+def save_selected_features(
+    trained_model,
+    output_path: Path,
+):
+    """Save the feature names selected for the fitted model."""
+
+    fitted_pipeline = get_fitted_pipeline(
+        trained_model
+    )
+
+    preprocessor = fitted_pipeline.named_steps[
+        "preprocessor"
+    ]
+
+    selector = fitted_pipeline.named_steps[
+        "feature_selection"
+    ]
+
+    transformed_names = (
+        preprocessor.get_feature_names_out()
+    )
+
+    selected_mask = selector.get_support()
+
+    selected_features = pd.DataFrame(
+        {
+            "feature": transformed_names[
+                selected_mask
+            ],
+            "f_score": selector.scores_[
+                selected_mask
+            ],
+            "p_value": selector.pvalues_[
+                selected_mask
+            ],
+        }
+    ).sort_values(
+        by="f_score",
+        ascending=False,
+    )
+
+    selected_features.to_csv(
+        output_path,
+        index=False,
+    )
+
+    return int(
+        selected_mask.sum()
+    )
+
+
+def save_coefficient_table(
+    trained_model,
+    selected_features_path: Path,
+    output_path: Path,
+):
+    """Save coefficients matched to the selected feature names."""
+
+    fitted_pipeline = get_fitted_pipeline(
+        trained_model
+    )
 
     regression_model = (
         fitted_pipeline.named_steps[
@@ -438,17 +592,23 @@ def save_coefficient_table(
         ]
     )
 
+    selected_features = pd.read_csv(
+        selected_features_path
+    )
+
     coefficients = pd.DataFrame(
         {
-            "feature": feature_names,
-            "coefficient": regression_model.coef_,
+            "feature": selected_features[
+                "feature"
+            ],
+            "coefficient": (
+                regression_model.coef_
+            ),
             "absolute_coefficient": np.abs(
                 regression_model.coef_
             ),
         }
-    )
-
-    coefficients = coefficients.sort_values(
+    ).sort_values(
         by="absolute_coefficient",
         ascending=False,
     )
@@ -461,11 +621,8 @@ def save_coefficient_table(
 
 def create_markdown_report(
     metrics,
-    feature_count,
-    training_rows,
-    testing_rows,
 ):
-    """Create the Member 4 Linear Regression report."""
+    """Create the updated Member 4 report."""
 
     wind = metrics["wind_model"]
     solar = metrics["solar_model"]
@@ -474,36 +631,45 @@ def create_markdown_report(
 
 ## Objective
 
-Train and evaluate Linear Regression models for renewable energy generation
-potential using the shared chronological train-test split.
-
-Two separate models were developed:
-
-- Wind power proxy prediction
-- Solar power proxy prediction
+Train and evaluate separate Linear Regression models for wind and solar
+renewable energy potential using the shared chronological train-test split.
 
 ## Dataset
 
-- Training rows: {training_rows:,}
-- Testing rows: {testing_rows:,}
-- Numeric predictor features: {feature_count}
+- Training rows: {metrics['training_rows']:,}
+- Testing rows: {metrics['testing_rows']:,}
+- Numeric input columns: {metrics['numeric_feature_count']}
+- Categorical input columns: {metrics['categorical_feature_count']}
 - Split method: Strict chronological split
 - Timestamp overlap: False
 
-## Modelling Approach
+## Preprocessing
 
-Only numeric predictor columns were used in this baseline model. Missing
-numeric values were handled using median imputation, and all predictors were
-standardized before training.
+Numeric variables were handled using median imputation and standardization.
 
-The wind power proxy was calculated as the cube of wind speed. A cube-root
-target transformation was therefore applied during training. Predictions were
-converted back to the original wind-power proxy scale before evaluation.
+Categorical variables such as country, location, timezone, weather condition,
+wind direction, and moon phase were retained and transformed using One-Hot
+Encoding. Unknown categories in the test set were ignored safely, while rare
+categories were grouped using a minimum-frequency threshold.
 
-The solar power proxy was modelled directly using standard Linear Regression.
+## Feature Selection
 
-Negative predictions were clipped to zero because renewable energy generation
-potential cannot be negative.
+Univariate regression feature selection was performed separately for the wind
+and solar models using `SelectPercentile` with `f_regression`.
+
+- Feature percentile retained: {FEATURE_PERCENTILE}%
+- Selected wind features: {wind['selected_feature_count']}
+- Selected solar features: {solar['selected_feature_count']}
+
+This allows the two models to retain different predictors based on their
+individual relationships with wind and solar energy potential.
+
+## Wind Target Transformation
+
+The wind power proxy was created using wind speed cubed. A cube-root target
+transformation was applied before training so that the model learned on the
+underlying wind-speed scale. Model predictions were then cubed to return them
+to the original wind power proxy scale.
 
 ## Wind Power Proxy Results
 
@@ -521,20 +687,20 @@ potential cannot be negative.
 
 ## Generated Deliverables
 
-- Wind Linear Regression model
-- Solar Linear Regression model
+- Wind and solar Linear Regression models
 - Prediction file
 - MAE, RMSE, and R² metrics
 - Actual-versus-predicted plots
 - Residual plots
-- Feature coefficient tables
+- Selected-feature tables
+- Coefficient tables
 - JSON metrics file
 
 ## Conclusion
 
-The two models provide a transparent linear baseline for comparison with the
-Decision Tree, Random Forest, and XGBoost regression models developed by the
-other team members.
+The updated models provide a stronger linear baseline by retaining categorical
+information and selecting the most relevant transformed features separately
+for wind and solar prediction.
 """
 
     report_path = (
@@ -551,7 +717,7 @@ other team members.
 
 
 def main():
-    """Run the complete Linear Regression workflow."""
+    """Run the updated Linear Regression workflow."""
 
     MODELS_DIR.mkdir(
         parents=True,
@@ -571,41 +737,39 @@ def main():
     ) = load_shared_split()
 
     (
-        X_train_numeric,
-        X_test_numeric,
-        feature_names,
+        X_train_model,
+        X_test_model,
+        numeric_features,
+        categorical_features,
         test_datetimes,
-    ) = prepare_numeric_features(
+    ) = prepare_model_features(
         X_train,
         X_test,
     )
 
-    # Train the wind power model:
+    # Train the wind model:
 
     print(
         "\nTraining the wind power "
         "Linear Regression model..."
     )
 
-    wind_pipeline = (
-        build_base_pipeline()
+    wind_pipeline = build_regression_pipeline(
+        numeric_features,
+        categorical_features,
     )
 
-    wind_model = (
-        TransformedTargetRegressor(
-            regressor=wind_pipeline,
-            func=cube_root,
-            inverse_func=cube_values,
-            check_inverse=False,
-        )
+    wind_model = TransformedTargetRegressor(
+        regressor=wind_pipeline,
+        func=cube_root,
+        inverse_func=cube_values,
+        check_inverse=False,
     )
 
-    wind_start_time = (
-        time.perf_counter()
-    )
+    wind_start_time = time.perf_counter()
 
     wind_model.fit(
-        X_train_numeric,
+        X_train_model,
         y_train[WIND_TARGET],
     )
 
@@ -615,7 +779,7 @@ def main():
     )
 
     wind_predictions = wind_model.predict(
-        X_test_numeric
+        X_test_model
     )
 
     wind_predictions = np.clip(
@@ -629,23 +793,22 @@ def main():
         wind_predictions,
     )
 
-    # Train the solar power model:
+    # Train the solar model:
 
     print(
         "Training the solar power "
         "Linear Regression model..."
     )
 
-    solar_model = (
-        build_base_pipeline()
+    solar_model = build_regression_pipeline(
+        numeric_features,
+        categorical_features,
     )
 
-    solar_start_time = (
-        time.perf_counter()
-    )
+    solar_start_time = time.perf_counter()
 
     solar_model.fit(
-        X_train_numeric,
+        X_train_model,
         y_train[SOLAR_TARGET],
     )
 
@@ -655,7 +818,7 @@ def main():
     )
 
     solar_predictions = solar_model.predict(
-        X_test_numeric
+        X_test_model
     )
 
     solar_predictions = np.clip(
@@ -669,7 +832,7 @@ def main():
         solar_predictions,
     )
 
-    # Save trained models:
+    # Save models:
 
     wind_model_path = (
         MODELS_DIR
@@ -728,76 +891,72 @@ def main():
 
     # Save plots:
 
-    wind_actual_plot = (
-        REPORTS_DIR
-        / "wind_actual_vs_predicted.png"
-    )
-
-    wind_residual_plot = (
-        REPORTS_DIR
-        / "wind_residual_plot.png"
-    )
-
-    solar_actual_plot = (
-        REPORTS_DIR
-        / "solar_actual_vs_predicted.png"
-    )
-
-    solar_residual_plot = (
-        REPORTS_DIR
-        / "solar_residual_plot.png"
-    )
-
     save_actual_vs_predicted_plot(
         y_test[WIND_TARGET],
         wind_predictions,
         "Wind Power Proxy",
-        wind_actual_plot,
+        REPORTS_DIR
+        / "wind_actual_vs_predicted.png",
     )
 
     save_residual_plot(
         y_test[WIND_TARGET],
         wind_predictions,
         "Wind Power Proxy",
-        wind_residual_plot,
+        REPORTS_DIR
+        / "wind_residual_plot.png",
     )
 
     save_actual_vs_predicted_plot(
         y_test[SOLAR_TARGET],
         solar_predictions,
         "Solar Power Proxy",
-        solar_actual_plot,
+        REPORTS_DIR
+        / "solar_actual_vs_predicted.png",
     )
 
     save_residual_plot(
         y_test[SOLAR_TARGET],
         solar_predictions,
         "Solar Power Proxy",
-        solar_residual_plot,
+        REPORTS_DIR
+        / "solar_residual_plot.png",
     )
 
-    # Save coefficient tables:
+    # Save selected features and coefficients:
 
-    wind_coefficients_path = (
+    wind_selected_path = (
         REPORTS_DIR
-        / "wind_feature_coefficients.csv"
+        / "wind_selected_features.csv"
     )
 
-    solar_coefficients_path = (
+    solar_selected_path = (
         REPORTS_DIR
-        / "solar_feature_coefficients.csv"
+        / "solar_selected_features.csv"
+    )
+
+    wind_selected_count = save_selected_features(
+        wind_model,
+        wind_selected_path,
+    )
+
+    solar_selected_count = save_selected_features(
+        solar_model,
+        solar_selected_path,
     )
 
     save_coefficient_table(
         wind_model,
-        feature_names,
-        wind_coefficients_path,
+        wind_selected_path,
+        REPORTS_DIR
+        / "wind_feature_coefficients.csv",
     )
 
     save_coefficient_table(
         solar_model,
-        feature_names,
-        solar_coefficients_path,
+        solar_selected_path,
+        REPORTS_DIR
+        / "solar_feature_coefficients.csv",
     )
 
     # Save metrics:
@@ -808,16 +967,31 @@ def main():
             "strict_chronological"
         ),
         "training_rows": int(
-            len(X_train_numeric)
+            len(X_train_model)
         ),
         "testing_rows": int(
-            len(X_test_numeric)
+            len(X_test_model)
         ),
         "numeric_feature_count": int(
-            len(feature_names)
+            len(numeric_features)
+        ),
+        "categorical_feature_count": int(
+            len(categorical_features)
         ),
         "numeric_features": (
-            feature_names
+            numeric_features
+        ),
+        "categorical_features": (
+            categorical_features
+        ),
+        "feature_selection_method": (
+            "SelectPercentile(f_regression)"
+        ),
+        "feature_percentile": (
+            FEATURE_PERCENTILE
+        ),
+        "minimum_category_frequency": (
+            MIN_CATEGORY_FREQUENCY
         ),
         "wind_target_transformation": (
             "cube_root"
@@ -827,11 +1001,17 @@ def main():
             "training_time_seconds": float(
                 wind_training_time
             ),
+            "selected_feature_count": int(
+                wind_selected_count
+            ),
         },
         "solar_model": {
             **solar_metrics,
             "training_time_seconds": float(
                 solar_training_time
+            ),
+            "selected_feature_count": int(
+                solar_selected_count
             ),
         },
     }
@@ -853,79 +1033,58 @@ def main():
         )
 
     report_path = create_markdown_report(
-        metrics,
-        len(feature_names),
-        len(X_train_numeric),
-        len(X_test_numeric),
+        metrics
     )
 
     # Display results:
 
     print(
-        "\nLinear Regression workflow "
+        "\nUpdated Linear Regression workflow "
         "completed successfully."
     )
 
     print("\nWind power proxy results:")
-
     print(
-        f"MAE:      "
+        f"MAE:"
         f"{wind_metrics['mae']:.4f}"
     )
-
     print(
-        f"RMSE:     "
+        f"RMSE:"
         f"{wind_metrics['rmse']:.4f}"
     )
-
     print(
         f"R² Score: "
         f"{wind_metrics['r2_score']:.4f}"
     )
+    print(
+        f"Selected features: "
+        f"{wind_selected_count}"
+    )
 
     print("\nSolar power proxy results:")
-
     print(
-        f"MAE:      "
+        f"MAE:"
         f"{solar_metrics['mae']:.4f}"
     )
-
     print(
-        f"RMSE:     "
+        f"RMSE:"
         f"{solar_metrics['rmse']:.4f}"
     )
-
     print(
         f"R² Score: "
         f"{solar_metrics['r2_score']:.4f}"
     )
+    print(
+        f"Selected features: "
+        f"{solar_selected_count}"
+    )
 
     print("\nSaved files:")
-
-    print(
-        f"Wind model: "
-        f"{wind_model_path}"
-    )
-
-    print(
-        f"Solar model: "
-        f"{solar_model_path}"
-    )
-
-    print(
-        f"Predictions: "
-        f"{predictions_path}"
-    )
-
-    print(
-        f"Metrics: "
-        f"{metrics_path}"
-    )
-
-    print(
-        f"Report: "
-        f"{report_path}"
-    )
+    print(f"Wind model: {wind_model_path}")
+    print(f"Solar model: {solar_model_path}")
+    print(f"Predictions: {predictions_path}")
+    print(f"Metrics: {metrics_path}")
+    print(f"Report: {report_path}")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@
     "training_rows": 96107,
     "testing_rows": 24041,
     "numeric_feature_count": 34,
+    "categorical_feature_count": 10,
     "numeric_features": [
         "latitude",
         "longitude",
@@ -40,17 +41,34 @@
         "temperature_celsius_roll_mean_3d",
         "temperature_celsius_roll_std_3d"
     ],
+    "categorical_features": [
+        "country",
+        "location_name",
+        "timezone",
+        "condition_text",
+        "wind_direction",
+        "sunrise",
+        "sunset",
+        "moonrise",
+        "moonset",
+        "moon_phase"
+    ],
+    "feature_selection_method": "SelectPercentile(f_regression)",
+    "feature_percentile": 30,
+    "minimum_category_frequency": 20,
     "wind_target_transformation": "cube_root",
     "wind_model": {
-        "mae": 1764.186648045359,
-        "rmse": 6093.981713116799,
-        "r2_score": 0.6883107357883671,
-        "training_time_seconds": 0.673696200014092
+        "mae": 1755.2329315511136,
+        "rmse": 6175.786062554687,
+        "r2_score": 0.6798864655731316,
+        "training_time_seconds": 7.671256299945526,
+        "selected_feature_count": 1268
     },
     "solar_model": {
-        "mae": 0.6323666258643551,
-        "rmse": 1.0619879010864508,
-        "r2_score": 0.7326090151036617,
-        "training_time_seconds": 0.5361116999993101
+        "mae": 0.5652502466185138,
+        "rmse": 0.9655727718944452,
+        "r2_score": 0.7789565531278546,
+        "training_time_seconds": 6.6809885000111535,
+        "selected_feature_count": 1268
     }
 }
