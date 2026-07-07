@@ -1,0 +1,67 @@
+{
+    "model_type": "XGBoost Regression",
+    "split_method": "strict_chronological",
+    "training_rows": 96013,
+    "testing_rows": 24135,
+    "numeric_feature_count": 34,
+    "numeric_features": [
+        "latitude",
+        "longitude",
+        "temperature_celsius",
+        "wind_degree",
+        "pressure_mb",
+        "precip_mm",
+        "humidity",
+        "feels_like_celsius",
+        "visibility_km",
+        "gust_kph",
+        "air_quality_Carbon_Monoxide",
+        "air_quality_Ozone",
+        "air_quality_Nitrogen_dioxide",
+        "air_quality_Sulphur_dioxide",
+        "air_quality_PM2.5",
+        "air_quality_PM10",
+        "air_quality_us-epa-index",
+        "air_quality_gb-defra-index",
+        "moon_illumination",
+        "country_daily_mean_temp",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+        "wind_kph_lag_1d",
+        "wind_kph_lag_2d",
+        "uv_index_lag_1d",
+        "uv_index_lag_2d",
+        "cloud_cover_lag_1d",
+        "cloud_cover_lag_2d",
+        "temperature_celsius_lag_1d",
+        "temperature_celsius_lag_2d",
+        "temperature_celsius_roll_mean_3d",
+        "temperature_celsius_roll_std_3d"
+    ],
+    "wind_model": {
+        "mae": 100155.03574510307,
+        "rmse": 100336.9341171881,
+        "r2_score": -83.78200335075375,
+        "best_parameters": {
+            "learning_rate": 0.01,
+            "max_depth": 3,
+            "n_estimators": 100
+        },
+        "best_cv_score": -7059610.415255911,
+        "training_time_seconds": 0.2721403579926118
+    },
+    "solar_model": {
+        "mae": 0.4885272986192109,
+        "rmse": 0.8860724949472559,
+        "r2_score": 0.8177356615752867,
+        "best_parameters": {
+            "learning_rate": 0.1,
+            "max_depth": 3,
+            "n_estimators": 100
+        },
+        "best_cv_score": 0.7872530451959194,
+        "training_time_seconds": 0.28501746800611727
+    }
+}

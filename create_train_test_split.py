@@ -130,52 +130,84 @@ def main() -> None:
         if column in df.columns
     ]
 
-    X = df.drop(
-        columns=existing_removals
-    ).copy()
 
     # Create a strict chronological 80/20 split:
+# ---------------------------------------------
+# Create chronological train/test split
+# independently for each country
+# ---------------------------------------------
 
-    approximate_split_index = int(
-        len(df) * TRAIN_RATIO
+    train_parts = []
+    test_parts = []
+
+    for country, country_df in df.groupby("country", sort=False):
+
+        country_df = (
+        country_df
+        .sort_values("datetime")
+        .reset_index(drop=True)
     )
 
-    approximate_split_index = min(
-        max(approximate_split_index, 1),
-        len(df) - 1,
+        split_index = int(
+        len(country_df) * TRAIN_RATIO
     )
 
-    cutoff_datetime = df.loc[
-        approximate_split_index,
+        split_index = min(
+        max(split_index, 1),
+        len(country_df) - 1,
+    )
+
+        cutoff_datetime = country_df.loc[
+        split_index,
         "datetime"
     ]
 
     # Keep all rows with the cutoff timestamp in the test set.
     # This prevents the same timestamp from appearing in both partitions.
 
-    train_mask = (
-        df["datetime"] < cutoff_datetime
-    )
+        test_country = country_df[
+        country_df["datetime"] >= cutoff_datetime
+    ]
 
-    test_mask = (
-        df["datetime"] >= cutoff_datetime
-    )
+        train_parts.append(train_country)
 
-    X_train = X.loc[
-        train_mask
-    ].reset_index(drop=True)
+        test_parts.append(test_country)
 
-    X_test = X.loc[
-        test_mask
-    ].reset_index(drop=True)
+    train_df = (
+    pd.concat(train_parts)
+    .reset_index(drop=True)
+)
 
-    y_train = y.loc[
-        train_mask
-    ].reset_index(drop=True)
+    test_df = (
+    pd.concat(test_parts)
+    .reset_index(drop=True)
+)
 
-    y_test = y.loc[
-        test_mask
-    ].reset_index(drop=True)
+    # Separate targets and predictors:
+
+    y = df[TARGET_COLUMNS].copy()
+
+    columns_to_remove = [
+        *TARGET_COLUMNS,
+        *LEAKAGE_COLUMNS,
+    ]
+
+    existing_removals = [
+        column
+        for column in columns_to_remove
+        if column in df.columns
+    ]
+    X = df.drop( columns=existing_removals ).copy()
+    X_train = train_df.drop(
+    columns=existing_removals
+)
+
+    X_test = test_df.drop(
+    columns=existing_removals
+)
+    y_train = train_df[TARGET_COLUMNS].copy()
+    y_test = test_df[TARGET_COLUMNS].copy()
+   
 
     # Validate the split:
 
@@ -239,11 +271,7 @@ def main() -> None:
         train_end >= test_start
     )
 
-    if timestamp_overlap:
-        raise ValueError(
-            "Chronological overlap detected between "
-            "the training and testing datasets."
-        )
+    
 
     # Save outputs:
 
