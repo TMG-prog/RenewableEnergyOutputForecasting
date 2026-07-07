@@ -102,8 +102,8 @@ def main() -> None:
             f"{invalid_dates} rows contain invalid datetime values."
         )
 
-    # Sort chronologically.
-    # location_name is used as a stable secondary sort field.
+    # Sort the data from oldest to newest.
+    # location_name provides a stable secondary ordering.
 
     sort_columns = ["datetime"]
 
@@ -115,7 +115,7 @@ def main() -> None:
         kind="mergesort",
     ).reset_index(drop=True)
 
-    # Separate targets and predictors:
+    # Separate predictors and targets:
 
     y = df[TARGET_COLUMNS].copy()
 
@@ -134,9 +134,6 @@ def main() -> None:
         columns=existing_removals
     ).copy()
 
-    # Keep datetime for traceability.
-    # Individual models can remove or transform it later.
-
     # Create a strict chronological 80/20 split:
 
     approximate_split_index = int(
@@ -153,8 +150,8 @@ def main() -> None:
         "datetime"
     ]
 
-    # Keep all rows with the cutoff timestamp in the test set
-    # so the same timestamp does not appear in both partitions.
+    # Keep all rows with the cutoff timestamp in the test set.
+    # This prevents the same timestamp from appearing in both partitions.
 
     train_mask = (
         df["datetime"] < cutoff_datetime
@@ -295,7 +292,7 @@ def main() -> None:
         index=False,
     )
 
-    # Save metadata describing the split:
+    # Save metadata describing the shared split:
 
     metadata = {
         "source_file": str(INPUT_FILE),
