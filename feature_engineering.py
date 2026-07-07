@@ -22,7 +22,7 @@ def engineer_features(input_path, output_path):
     df['datetime'] = pd.to_datetime(df['datetime'])
     df = df.sort_values(['location_name', 'datetime']).reset_index(drop=True)
     
-    print("Engineering target power proxies")
+    print("Engineering target power proxies (today's realized output)")
     # Wind Power Proxy: Proportional to the cube of wind speed
     df['wind_power_proxy'] = df['wind_kph'] ** 3
     
@@ -59,7 +59,28 @@ def engineer_features(input_path, output_path):
         # Apply standard deviation computation first, then safely resolve initial NaN edge cases to 0
         df[f'{col}_roll_std_3d'] = df.groupby('location_name')[col].transform(lambda x: x.rolling(window=3, min_periods=1).std()).fillna(0)
         
+    print("Shifting targets forward so the model forecasts NEXT-DAY output")
+    # Everything computed above (raw weather, lag_1d/lag_2d, rolling means/stds,
+    # country-level daily means) reflects information known as of "today" for
+    # each row. Up to this point, wind_power_proxy / solar_power_proxy are
+    # TODAY's realized output — training on them directly would just teach the
+    # model to re-derive wind_kph**3 and uv_index*clear_factor, which is
+    # leakage, not forecasting.
+    #
+    # Shifting each target back by one row *within its own location's
+    # timeline* re-labels each row with TOMORROW's power proxy instead, while
+    # every feature column stays "today's" value. That turns this into a
+    # genuine next-day forecasting problem: predict tomorrow's wind/solar
+    # power potential using only information available today (current +
+    # lagged/rolling weather). The last day on record for each location has
+    # no "tomorrow" to attach, so it becomes NaN here and is dropped below —
+    # same mechanism already used to drop the lag warm-up rows.
+    df['wind_power_proxy'] = df.groupby('location_name')['wind_power_proxy'].shift(-1)
+    df['solar_power_proxy'] = df.groupby('location_name')['solar_power_proxy'].shift(-1)
+
     # Clean up empty boundary rows introduced by shifting operations
+    # (lag warm-up rows at the start of each location's timeline, and the
+    # final day of each location's timeline, which has no next-day target)
     df = df.dropna().reset_index(drop=True)
     
     # Drop unneeded raw helper columns

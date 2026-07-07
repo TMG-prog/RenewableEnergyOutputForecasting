@@ -9,8 +9,8 @@ proxy and one for the solar power proxy.
 
 ## Dataset
 
-- Training rows: 96,013
-- Testing rows: 24,135
+- Training rows: 95,832
+- Testing rows: 24,093
 - Numeric predictor features: 34
 - Split method: chronological split, applied per country
 
@@ -28,19 +28,19 @@ zero, since renewable energy generation potential cannot be negative.
 
 | Metric | Value |
 |---|---|
-| MAE | 1439.8376 |
-| RMSE | 4263.9656 |
-| R² Score | 0.8469 |
+| MAE | 6149.5561 |
+| RMSE | 134778.0755 |
+| R² Score | -152.4152 |
 | Best parameters | `max_depth=10`, `min_samples_leaf=1` |
 
 ## Solar Power Proxy Results
 
 | Metric | Value |
 |---|---|
-| MAE | 0.4963 |
-| RMSE | 0.9639 |
-| R² Score | 0.7843 |
-| Best parameters | `max_depth=10`, `min_samples_leaf=30` |
+| MAE | 0.5984 |
+| RMSE | 1.1472 |
+| R² Score | 0.6950 |
+| Best parameters | `max_depth=10`, `min_samples_leaf=50` |
 
 ## Interpretation
 

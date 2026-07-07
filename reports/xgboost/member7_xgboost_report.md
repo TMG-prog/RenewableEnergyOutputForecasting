@@ -23,19 +23,19 @@ performance on the testing dataset.
 
 ## Wind Power Proxy Results
 
-- MAE: 100155.0357
-- RMSE: 100336.9341
-- R² Score: -83.7820
-- Best CV Score: -7059610.4153
-- Training Time: 0.37 seconds
+- MAE: 3392.9869
+- RMSE: 9665.2986
+- R² Score: 0.2110
+- Best CV Score: 0.4396
+- Training Time: 0.93 seconds
 
 ## Solar Power Proxy Results
 
-- MAE: 0.4885
-- RMSE: 0.8861
-- R² Score: 0.8177
-- Best CV Score: 0.7873
-- Training Time: 0.27 seconds
+- MAE: 0.5853
+- RMSE: 1.0709
+- R² Score: 0.7342
+- Best CV Score: 0.6880
+- Training Time: 0.73 seconds
 
 ## Deliverables
 

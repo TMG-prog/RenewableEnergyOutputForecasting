@@ -1,8 +1,8 @@
 {
     "model_type": "Linear Regression",
     "split_method": "strict_chronological",
-    "training_rows": 96107,
-    "testing_rows": 24041,
+    "training_rows": 95832,
+    "testing_rows": 24093,
     "numeric_feature_count": 34,
     "categorical_feature_count": 10,
     "numeric_features": [
@@ -54,21 +54,21 @@
         "moon_phase"
     ],
     "feature_selection_method": "SelectPercentile(f_regression)",
-    "feature_percentile": 30,
-    "minimum_category_frequency": 20,
+    "feature_percentile": 10,
+    "minimum_category_frequency": 100,
     "wind_target_transformation": "cube_root",
     "wind_model": {
-        "mae": 1755.2329315511136,
-        "rmse": 6175.786062554687,
-        "r2_score": 0.6798864655731316,
-        "training_time_seconds": 7.671256299945526,
-        "selected_feature_count": 1268
+        "mae": 3578.4148097299762,
+        "rmse": 9615.019574872693,
+        "r2_score": 0.21921712908545798,
+        "training_time_seconds": 3.9125935999909416,
+        "selected_feature_count": 110
     },
     "solar_model": {
-        "mae": 0.5652502466185138,
-        "rmse": 0.9655727718944452,
-        "r2_score": 0.7789565531278546,
-        "training_time_seconds": 6.6809885000111535,
-        "selected_feature_count": 1268
+        "mae": 0.6518751326234035,
+        "rmse": 1.1496715076003345,
+        "r2_score": 0.6936969303400059,
+        "training_time_seconds": 3.825422099995194,
+        "selected_feature_count": 110
     }
 }

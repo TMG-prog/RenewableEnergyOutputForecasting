@@ -253,46 +253,65 @@ def train_model(
     X_test,
     y_train,
     y_test,
+    log_transform=False,
 ):
     """
     Tune and train a single XGBoost regression model.
- """
+
+    Parameters
+    ----------
+    log_transform : bool
+        If True, apply log1p() to the target during training
+        and convert predictions back using expm1().
+    """
+
+    if log_transform:
+        y_train_model = inc.np.log1p(y_train)
+        y_test_model = inc.np.log1p(y_test)
+    else:
+        y_train_model = y_train
+        y_test_model = y_test
+
     grid = tune_xgb_model(
         X_train,
-        y_train,)
+        y_train_model,
+    )
 
     model = XGBRegressor(
         **grid.best_params_,
         random_state=RANDOM_STATE,
         early_stopping_rounds=EARLY_STOPPING_ROUNDS,
+        objective="reg:squarederror",
     )
 
     start_time = time.perf_counter()
+
     model.fit(
         X_train,
-        y_train,
-        eval_set=[
-            (X_test, y_test)
-],        verbose=False, )
+        y_train_model,
+        eval_set=[(X_test, y_test_model)],
+        verbose=False,
+    )
 
-    training_time = ( time.perf_counter()- start_time)
+    training_time = time.perf_counter() - start_time
 
     predictions = model.predict(X_test)
 
+    if log_transform:
+        predictions = inc.np.expm1(predictions)
+
     metrics = calculate_metrics(
-        y_test,predictions,)
+        y_test,
+        predictions,
+    )
 
     return {
         "model": model,
         "predictions": predictions,
         "metrics": metrics,
         "best_params": grid.best_params_,
-        "best_cv_score": float(
-            grid.best_score_
-        ),
-        "training_time": float(
-            training_time
-        ),
+        "best_cv_score": float(grid.best_score_),
+        "training_time": float(training_time),
     }
 # ==========================================================
 # Feature Importance Plot
@@ -613,6 +632,7 @@ def main():
         X_test_numeric,
         y_train[WIND_TARGET],
         y_test[WIND_TARGET],
+         log_transform=True, 
     )
 
     save_model(

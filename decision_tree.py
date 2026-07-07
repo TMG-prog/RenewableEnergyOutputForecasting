@@ -17,15 +17,22 @@ import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+from sklearn.compose import TransformedTargetRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import GridSearchCV
+
 from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
     r2_score,
 )
+def cube_root(values):
+    """Apply a cube-root transformation."""
+    return np.cbrt(values)
 
+def cube_values(values):
+    """Reverse the cube-root transformation."""
+    return np.power(values, 3)
 # ----------------------------------------------------
 # Configuration
 # ----------------------------------------------------
@@ -112,9 +119,18 @@ def save_plots(y_true, y_pred, name):
 
 def save_feature_importance(model, feature_names, name):
     """Save a feature importance table (CSV) and a bar chart (PNG)."""
+    
+    # --- THE FIX ---
+    # Check if the model is a wrapper (has 'regressor_'). If it is, unwrap it.
+    if hasattr(model, 'regressor_'):
+        actual_model = model.regressor_
+    else:
+        actual_model = model
+        
     importance_df = pd.DataFrame({
         "feature": feature_names,
-        "importance": model.feature_importances_,
+        # Use 'actual_model' instead of 'model'
+        "importance": actual_model.feature_importances_, 
     }).sort_values(by="importance", ascending=False)
 
     importance_df.to_csv(
@@ -139,25 +155,29 @@ def save_feature_importance(model, feature_names, name):
 print("\nTraining Wind Power Model...")
 
 # Hyperparameter values to test
-param_grid = {
-    "max_depth": [5, 10, None],
-    "min_samples_leaf": [1, 5, 10, 20, 30, 50]
+wind_param_grid = {
+    "regressor__max_depth": [5, 10, None],
+    "regressor__min_samples_leaf": [1, 5, 10, 20, 30, 50]
 }
 
-# Create the Decision Tree
-wind_tree = DecisionTreeRegressor(
-    random_state=42
+# Wrap the model:
+wind_tree = DecisionTreeRegressor(random_state=42)
+
+transformed_wind_model = TransformedTargetRegressor(
+    regressor=wind_tree,
+    func=cube_root,
+    inverse_func=cube_values,
+    check_inverse=False,
 )
 
-# Perform hyperparameter tuning
+# Update the GridSearchCV to use the wrapped model and the new param grid:
 wind_grid = GridSearchCV(
-    estimator=wind_tree,
-    param_grid=param_grid,
+    estimator=transformed_wind_model,
+    param_grid=wind_param_grid,
     cv=5,
     scoring="neg_mean_absolute_error",
     n_jobs=-1
 )
-
 # Train the model
 wind_grid.fit(
     X_train,
@@ -225,7 +245,11 @@ save_feature_importance(wind_model, X_train.columns, "Wind")
 
 print("\nTraining Solar Power Model...")
 
-# Create the Decision Tree
+solar_param_grid = {
+    "max_depth": [5, 10, None],
+    "min_samples_leaf": [1, 5, 10, 20, 30, 50]
+}
+
 solar_tree = DecisionTreeRegressor(
     random_state=42
 )
@@ -233,12 +257,11 @@ solar_tree = DecisionTreeRegressor(
 # Hyperparameter tuning
 solar_grid = GridSearchCV(
     estimator=solar_tree,
-    param_grid=param_grid,
+    param_grid=solar_param_grid,
     cv=5,
     scoring="neg_mean_absolute_error",
     n_jobs=-1
 )
-
 # Train the model
 solar_grid.fit(
     X_train,

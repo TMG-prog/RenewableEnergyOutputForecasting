@@ -1,8 +1,8 @@
 {
     "model_type": "XGBoost Regression",
     "split_method": "strict_chronological",
-    "training_rows": 96013,
-    "testing_rows": 24135,
+    "training_rows": 95832,
+    "testing_rows": 24093,
     "numeric_feature_count": 34,
     "numeric_features": [
         "latitude",
@@ -41,27 +41,27 @@
         "temperature_celsius_roll_std_3d"
     ],
     "wind_model": {
-        "mae": 100155.03574510307,
-        "rmse": 100336.9341171881,
-        "r2_score": -83.78200335075375,
-        "best_parameters": {
-            "learning_rate": 0.01,
-            "max_depth": 3,
-            "n_estimators": 100
-        },
-        "best_cv_score": -7059610.415255911,
-        "training_time_seconds": 0.36543854398769327
-    },
-    "solar_model": {
-        "mae": 0.4885272986192109,
-        "rmse": 0.8860724949472559,
-        "r2_score": 0.8177356615752867,
+        "mae": 3392.9868921443885,
+        "rmse": 9665.298551716625,
+        "r2_score": 0.21103002034877205,
         "best_parameters": {
             "learning_rate": 0.1,
             "max_depth": 3,
             "n_estimators": 100
         },
-        "best_cv_score": 0.7872530451959194,
-        "training_time_seconds": 0.27247444599925075
+        "best_cv_score": 0.43963606427023827,
+        "training_time_seconds": 0.9275572999904398
+    },
+    "solar_model": {
+        "mae": 0.5852645646449833,
+        "rmse": 1.0709401291346652,
+        "r2_score": 0.7342127173280969,
+        "best_parameters": {
+            "learning_rate": 0.1,
+            "max_depth": 3,
+            "n_estimators": 100
+        },
+        "best_cv_score": 0.6879839179987894,
+        "training_time_seconds": 0.7323618000082206
     }
 }

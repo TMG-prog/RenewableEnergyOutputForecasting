@@ -1,8 +1,8 @@
 {
     "model_type": "Random Forest Regressor",
     "split_method": "strict_chronological",
-    "training_rows": 96107,
-    "testing_rows": 24041,
+    "training_rows": 95832,
+    "testing_rows": 24093,
     "numeric_feature_count": 34,
     "numeric_features": [
         "latitude",
@@ -42,29 +42,29 @@
     ],
     "wind_target_transformation": "cube_root",
     "wind_model": {
-        "mae": 1705.825537332863,
-        "rmse": 6272.068724666995,
-        "r2_score": 0.6698272954450777,
-        "training_time_seconds": 2.7900694999843836,
+        "mae": 3439.287890122718,
+        "rmse": 9426.911681669864,
+        "r2_score": 0.2494687008469505,
+        "training_time_seconds": 5.1782273999997415,
         "best_params": {
             "regressor__model__n_estimators": 80,
             "regressor__model__min_samples_split": 10,
-            "regressor__model__min_samples_leaf": 4,
+            "regressor__model__min_samples_leaf": 8,
             "regressor__model__max_features": "sqrt",
             "regressor__model__max_depth": 14
         }
     },
     "solar_model": {
-        "mae": 0.46120407705730787,
-        "rmse": 0.8351750494631857,
-        "r2_score": 0.834627745975637,
-        "training_time_seconds": 2.5550694999983534,
+        "mae": 0.6312051407497484,
+        "rmse": 1.077102983733896,
+        "r2_score": 0.7311449054281081,
+        "training_time_seconds": 3.270860699994955,
         "best_params": {
             "model__n_estimators": 80,
-            "model__min_samples_split": 10,
-            "model__min_samples_leaf": 4,
-            "model__max_features": "sqrt",
-            "model__max_depth": 14
+            "model__min_samples_split": 5,
+            "model__min_samples_leaf": 8,
+            "model__max_features": "log2",
+            "model__max_depth": 10
         }
     }
 }

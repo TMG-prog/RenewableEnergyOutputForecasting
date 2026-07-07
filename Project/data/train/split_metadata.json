@@ -1,12 +1,12 @@
 {
-    "source_file": "/Users/ian/4.1 Projects/Machine-Learning/RenewableEnergyOutputForecasting/Project/data/cleaned/processed_features.csv",
+    "source_file": "C:\\Users\\tracy\\Desktop\\RenewableEnergyOutputForecasting\\Project\\data\\cleaned\\processed_features.csv",
     "split_method": "strict_chronological",
     "requested_train_ratio": 0.8,
-    "actual_train_ratio": 0.7991227486100476,
-    "actual_test_ratio": 0.20087725138995238,
-    "cutoff_datetime": "2025-12-26 07:15:00",
-    "training_rows": 96013,
-    "testing_rows": 24135,
+    "actual_train_ratio": 0.7990994371482176,
+    "actual_test_ratio": 0.20090056285178237,
+    "cutoff_datetime": "2025-12-25 07:00:00",
+    "training_rows": 95832,
+    "testing_rows": 24093,
     "feature_count": 45,
     "feature_columns": [
         "country",
@@ -70,8 +70,8 @@
         "wind_kph_roll_std_3d"
     ],
     "training_start": "2024-05-17 09:15:00",
-    "training_end": "2025-12-25 07:00:00",
+    "training_end": "2025-12-24 07:00:00",
     "testing_start": "2024-06-25 07:15:00",
-    "testing_end": "2026-01-27 20:00:00",
+    "testing_end": "2026-01-26 20:00:00",
     "timestamp_overlap": true
 }

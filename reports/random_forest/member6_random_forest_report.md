@@ -23,20 +23,20 @@ Hyperparameter tuning was completed using `RandomizedSearchCV` and a 3-fold `Tim
 - Estimators: 80
 - Max Depth: 14
 - Min Samples Split: 10
-- Min Samples Leaf: 4
+- Min Samples Leaf: 8
 - Max Features: sqrt
 
 ### Solar Power Proxy Optimized Parameters
 - Estimators: 80
-- Max Depth: 14
-- Min Samples Split: 10
-- Min Samples Leaf: 4
-- Max Features: sqrt
+- Max Depth: 10
+- Min Samples Split: 5
+- Min Samples Leaf: 8
+- Max Features: log2
 
 ## Dataset
 
-- Training rows: 96,107
-- Testing rows: 24,041
+- Training rows: 95,832
+- Testing rows: 24,093
 - Numeric predictor features: 34
 - Split method: Strict chronological split
 - Timestamp overlap: False
@@ -49,16 +49,16 @@ The wind power proxy model applies a cube-root target transformation via `Transf
 The solar power proxy model is fitted directly. Negative predictions were clipped to zero for both models.
 
 ## Wind Power Proxy Results
-- **MAE**: 1705.8255
-- **RMSE**: 6272.0687
-- **R² Score**: 0.6698
-- **Training time**: 2.79 seconds
+- **MAE**: 3439.2879
+- **RMSE**: 9426.9117
+- **R² Score**: 0.2495
+- **Training time**: 5.18 seconds
 
 ## Solar Power Proxy Results
-- **MAE**: 0.4612
-- **RMSE**: 0.8352
-- **R² Score**: 0.8346
-- **Training time**: 2.56 seconds
+- **MAE**: 0.6312
+- **RMSE**: 1.0771
+- **R² Score**: 0.7311
+- **Training time**: 3.27 seconds
 
 ## Generated Deliverables
 - Wind Random Forest model (compressed)

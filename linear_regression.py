@@ -1,16 +1,3 @@
-"""
-Member 4: Linear Regression models for renewable energy potential.
-
-This updated script:
-1. Loads the shared chronological train-test split.
-2. Uses both numeric and categorical predictors.
-3. One-hot encodes categorical variables.
-4. Applies univariate feature selection separately for wind and solar models.
-5. Trains separate Linear Regression models.
-6. Evaluates both models using MAE, RMSE, and R².
-7. Saves models, predictions, plots, metrics, selected features, and a report.
-"""
-
 from pathlib import Path
 import json
 import time
@@ -29,7 +16,7 @@ from sklearn.feature_selection import (
     f_regression,
 )
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge  # Swapped from LinearRegression
 from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
@@ -40,7 +27,6 @@ from sklearn.preprocessing import (
     OneHotEncoder,
     StandardScaler,
 )
-
 
 # Configuration:
 
@@ -73,40 +59,27 @@ Y_TEST_PATH = DATA_DIR / "y_test.csv"
 WIND_TARGET = "wind_power_proxy"
 SOLAR_TARGET = "solar_power_proxy"
 
-# Percentage of transformed features retained by SelectPercentile.
-FEATURE_PERCENTILE = 30
+# PRUNED: Reduced from 30 to 10 to prevent feature avalanche
+FEATURE_PERCENTILE = 10
 
-# Rare categories occurring fewer than this number are grouped together.
-MIN_CATEGORY_FREQUENCY = 20
+# TAMED: Increased from 20 to 100 to group hundreds of unique locations
+MIN_CATEGORY_FREQUENCY = 100
 
 
 def cube_root(values):
     """Apply a cube-root transformation to the wind target."""
-
     return np.cbrt(values)
 
 
 def cube_values(values):
     """Reverse the cube-root transformation."""
-
     return np.power(values, 3)
 
 
 def load_shared_split():
     """Load and validate the shared chronological split."""
-
-    required_files = [
-        X_TRAIN_PATH,
-        X_TEST_PATH,
-        Y_TRAIN_PATH,
-        Y_TEST_PATH,
-    ]
-
-    missing_files = [
-        str(path)
-        for path in required_files
-        if not path.exists()
-    ]
+    required_files = [X_TRAIN_PATH, X_TEST_PATH, Y_TRAIN_PATH, Y_TEST_PATH]
+    missing_files = [str(path) for path in required_files if not path.exists()]
 
     if missing_files:
         raise FileNotFoundError(
@@ -115,262 +88,158 @@ def load_shared_split():
         )
 
     print("Loading the shared train-test split...")
-
     X_train = pd.read_csv(X_TRAIN_PATH)
     X_test = pd.read_csv(X_TEST_PATH)
     y_train = pd.read_csv(Y_TRAIN_PATH)
     y_test = pd.read_csv(Y_TEST_PATH)
 
-    if len(X_train) != len(y_train):
-        raise ValueError(
-            "X_train and y_train have different row counts."
-        )
-
-    if len(X_test) != len(y_test):
-        raise ValueError(
-            "X_test and y_test have different row counts."
-        )
-
-    required_targets = [
-        WIND_TARGET,
-        SOLAR_TARGET,
-    ]
-
-    missing_targets = [
-        target
-        for target in required_targets
-        if target not in y_train.columns
-        or target not in y_test.columns
-    ]
-
-    if missing_targets:
-        raise ValueError(
-            "The following target columns are missing:\n"
-            + "\n".join(missing_targets)
-        )
-
-    print(f"X_train shape: {X_train.shape}")
-    print(f"X_test shape:  {X_test.shape}")
-    print(f"y_train shape: {y_train.shape}")
-    print(f"y_test shape:  {y_test.shape}")
+    if len(X_train) != len(y_train) or len(X_test) != len(y_test):
+        raise ValueError("X and y datasets have mismatched row counts.")
 
     return X_train, X_test, y_train, y_test
 
 
-def prepare_model_features(
-    X_train: pd.DataFrame,
-    X_test: pd.DataFrame,
-):
-    """
-    Prepare the modelling datasets.
-
-    datetime is retained only for reporting and removed from the predictors.
-    Numeric and categorical columns are identified separately.
-    """
-
+def prepare_model_features(X_train: pd.DataFrame, X_test: pd.DataFrame):
+    """Prepare the modelling datasets."""
     if "datetime" in X_test.columns:
-        test_datetimes = X_test[
-            "datetime"
-        ].copy()
+        test_datetimes = X_test["datetime"].copy()
     else:
-        test_datetimes = pd.Series(
-            range(len(X_test)),
-            name="row_id",
-        )
+        test_datetimes = pd.Series(range(len(X_test)), name="row_id")
 
-    columns_to_drop = [
-        column
-        for column in ["datetime"]
-        if column in X_train.columns
-    ]
+    columns_to_drop = [col for col in ["datetime"] if col in X_train.columns]
 
-    X_train_model = X_train.drop(
-        columns=columns_to_drop
-    ).copy()
+    X_train_model = X_train.drop(columns=columns_to_drop).copy()
+    X_test_model = X_test.drop(columns=columns_to_drop).copy()
 
-    X_test_model = X_test.drop(
-        columns=columns_to_drop
-    ).copy()
+    numeric_features = X_train_model.select_dtypes(include=["number", "bool"]).columns.tolist()
+    categorical_features = X_train_model.select_dtypes(include=["object", "string", "category"]).columns.tolist()
 
-    numeric_features = X_train_model.select_dtypes(
-        include=["number", "bool"]
-    ).columns.tolist()
+    print(f"Numeric features: {len(numeric_features)}")
+    print(f"Categorical features: {len(categorical_features)}")
 
-    categorical_features = X_train_model.select_dtypes(
-        include=["object", "string", "category"]
-    ).columns.tolist()
-
-    if not numeric_features and not categorical_features:
-        raise ValueError(
-            "No usable predictor columns were found."
-        )
-
-    missing_in_test = [
-        column
-        for column in X_train_model.columns
-        if column not in X_test_model.columns
-    ]
-
-    if missing_in_test:
-        raise ValueError(
-            "The following training features are missing from X_test:\n"
-            + "\n".join(missing_in_test)
-        )
-
-    print(
-        f"Numeric features: "
-        f"{len(numeric_features)}"
-    )
-
-    print(
-        f"Categorical features: "
-        f"{len(categorical_features)}"
-    )
-
-    return (
-        X_train_model,
-        X_test_model,
-        numeric_features,
-        categorical_features,
-        test_datetimes,
-    )
+    return X_train_model, X_test_model, numeric_features, categorical_features, test_datetimes
 
 
-def build_preprocessor(
-    numeric_features,
-    categorical_features,
-):
+def build_preprocessor(numeric_features, categorical_features):
     """Create preprocessing for numeric and categorical variables."""
+    numeric_pipeline = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler(with_mean=False)),
+    ])
 
-    numeric_pipeline = Pipeline(
-        steps=[
-            (
-                "imputer",
-                SimpleImputer(
-                    strategy="median"
-                ),
-            ),
-            (
-                "scaler",
-                StandardScaler(
-                    with_mean=False
-                ),
-            ),
-        ]
-    )
-
-    categorical_pipeline = Pipeline(
-        steps=[
-            (
-                "imputer",
-                SimpleImputer(
-                    strategy="most_frequent"
-                ),
-            ),
-            (
-                "encoder",
-                OneHotEncoder(
-                    handle_unknown="ignore",
-                    min_frequency=MIN_CATEGORY_FREQUENCY,
-                    sparse_output=True,
-                ),
-            ),
-        ]
-    )
+    categorical_pipeline = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(
+            handle_unknown="ignore",
+            min_frequency=MIN_CATEGORY_FREQUENCY,
+            sparse_output=True,
+        )),
+    ])
 
     transformers = []
-
     if numeric_features:
-        transformers.append(
-            (
-                "numeric",
-                numeric_pipeline,
-                numeric_features,
-            )
-        )
-
+        transformers.append(("numeric", numeric_pipeline, numeric_features))
     if categorical_features:
-        transformers.append(
-            (
-                "categorical",
-                categorical_pipeline,
-                categorical_features,
-            )
-        )
+        transformers.append(("categorical", categorical_pipeline, categorical_features))
 
-    return ColumnTransformer(
-        transformers=transformers,
-        remainder="drop",
-        sparse_threshold=1.0,
-    )
+    return ColumnTransformer(transformers=transformers, remainder="drop", sparse_threshold=1.0)
 
 
-def build_regression_pipeline(
-    numeric_features,
-    categorical_features,
-):
-    """
-    Build the complete model pipeline.
+def build_regression_pipeline(numeric_features, categorical_features):
+    """Build the complete Ridge regression pipeline."""
+    preprocessor = build_preprocessor(numeric_features, categorical_features)
 
-    Feature selection is fitted separately for each target because wind
-    and solar power may depend on different predictors.
-    """
-
-    preprocessor = build_preprocessor(
-        numeric_features,
-        categorical_features,
-    )
-
-    return Pipeline(
-        steps=[
-            (
-                "preprocessor",
-                preprocessor,
-            ),
-            (
-                "feature_selection",
-                SelectPercentile(
-                    score_func=f_regression,
-                    percentile=FEATURE_PERCENTILE,
-                ),
-            ),
-            (
-                "model",
-                LinearRegression(),
-            ),
-        ]
-    )
+    return Pipeline(steps=[
+        ("preprocessor", preprocessor),
+        ("feature_selection", SelectPercentile(
+            score_func=f_regression,
+            percentile=FEATURE_PERCENTILE,
+        )),
+        # REGULARIZED: Ridge applied with alpha=10.0 to penalize large coefficients
+        ("model", Ridge(alpha=10.0)),
+    ])
 
 
-def calculate_metrics(
-    y_true: pd.Series,
-    y_pred: np.ndarray,
-):
+def calculate_metrics(y_true: pd.Series, y_pred: np.ndarray):
     """Calculate MAE, RMSE, and R²."""
-
     return {
-        "mae": float(
-            mean_absolute_error(
-                y_true,
-                y_pred,
-            )
-        ),
-        "rmse": float(
-            np.sqrt(
-                mean_squared_error(
-                    y_true,
-                    y_pred,
-                )
-            )
-        ),
-        "r2_score": float(
-            r2_score(
-                y_true,
-                y_pred,
-            )
-        ),
+        "mae": float(mean_absolute_error(y_true, y_pred)),
+        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
+        "r2_score": float(r2_score(y_true, y_pred)),
     }
 
+
+def get_fitted_pipeline(trained_model):
+    """Return the fitted Pipeline from either model type."""
+    if isinstance(trained_model, TransformedTargetRegressor):
+        return trained_model.regressor_
+    return trained_model
+
+
+def save_selected_features(trained_model, output_path: Path):
+    """Save the feature names selected for the fitted model."""
+    fitted_pipeline = get_fitted_pipeline(trained_model)
+    preprocessor = fitted_pipeline.named_steps["preprocessor"]
+    selector = fitted_pipeline.named_steps["feature_selection"]
+
+    transformed_names = preprocessor.get_feature_names_out()
+    selected_mask = selector.get_support()
+
+    selected_features = pd.DataFrame({
+        "feature": transformed_names[selected_mask],
+        "f_score": selector.scores_[selected_mask],
+    }).sort_values(by="f_score", ascending=False)
+
+    selected_features.to_csv(output_path, index=False)
+    return int(selected_mask.sum())
+
+
+def main():
+    """Run the updated Ridge Regression workflow."""
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    X_train, X_test, y_train, y_test = load_shared_split()
+
+    X_train_model, X_test_model, numeric_features, categorical_features, test_datetimes = prepare_model_features(
+        X_train, X_test
+    )
+
+    # Train the wind model
+    print("\nTraining the wind power Ridge Regression model...")
+    wind_pipeline = build_regression_pipeline(numeric_features, categorical_features)
+    
+    wind_model = TransformedTargetRegressor(
+        regressor=wind_pipeline,
+        func=cube_root,
+        inverse_func=cube_values,
+        check_inverse=False,
+    )
+
+    wind_model.fit(X_train_model, y_train[WIND_TARGET])
+    wind_predictions = np.clip(wind_model.predict(X_test_model), a_min=0, a_max=None)
+    wind_metrics = calculate_metrics(y_test[WIND_TARGET], wind_predictions)
+
+    # Train the solar model
+    print("Training the solar power Ridge Regression model...")
+    solar_model = build_regression_pipeline(numeric_features, categorical_features)
+    
+    solar_model.fit(X_train_model, y_train[SOLAR_TARGET])
+    solar_predictions = np.clip(solar_model.predict(X_test_model), a_min=0, a_max=None)
+    solar_metrics = calculate_metrics(y_test[SOLAR_TARGET], solar_predictions)
+
+    # Display results
+    print("\nUpdated Ridge Regression workflow completed successfully.")
+    
+    print(f"\nWind power proxy results:")
+    print(f"MAE: {wind_metrics['mae']:.4f}")
+    print(f"RMSE: {wind_metrics['rmse']:.4f}")
+    print(f"R² Score: {wind_metrics['r2_score']:.4f}")
+
+    print(f"\nSolar power proxy results:")
+    print(f"MAE: {solar_metrics['mae']:.4f}")
+    print(f"RMSE: {solar_metrics['rmse']:.4f}")
+    print(f"R² Score: {solar_metrics['r2_score']:.4f}")
 
 def save_actual_vs_predicted_plot(
     y_true: pd.Series,

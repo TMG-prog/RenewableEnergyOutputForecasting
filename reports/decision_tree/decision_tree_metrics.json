@@ -1,24 +1,24 @@
 {
     "model_type": "Decision Tree Regressor",
     "numeric_feature_count": 34,
-    "training_rows": 96013,
-    "testing_rows": 24135,
+    "training_rows": 95832,
+    "testing_rows": 24093,
     "wind_model": {
-        "mae": 1439.8376257543803,
-        "rmse": 4263.96562883288,
-        "r2_score": 0.8468879357404657,
+        "mae": 3512.9215668264574,
+        "rmse": 9456.240565975135,
+        "r2_score": 0.24479134977161277,
         "best_params": {
-            "max_depth": 10,
-            "min_samples_leaf": 1
+            "regressor__max_depth": 5,
+            "regressor__min_samples_leaf": 1
         }
     },
     "solar_model": {
-        "mae": 0.49633351527345937,
-        "rmse": 0.9639150111429747,
-        "r2_score": 0.7843047011503799,
+        "mae": 0.5984359909601972,
+        "rmse": 1.1471706940449535,
+        "r2_score": 0.6950280475130597,
         "best_params": {
             "max_depth": 10,
-            "min_samples_leaf": 30
+            "min_samples_leaf": 50
         }
     }
 }

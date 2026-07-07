@@ -7,8 +7,8 @@ renewable energy potential using the shared chronological train-test split.
 
 ## Dataset
 
-- Training rows: 96,107
-- Testing rows: 24,041
+- Training rows: 95,832
+- Testing rows: 24,093
 - Numeric input columns: 34
 - Categorical input columns: 10
 - Split method: Strict chronological split
@@ -28,9 +28,9 @@ categories were grouped using a minimum-frequency threshold.
 Univariate regression feature selection was performed separately for the wind
 and solar models using `SelectPercentile` with `f_regression`.
 
-- Feature percentile retained: 30%
-- Selected wind features: 1268
-- Selected solar features: 1268
+- Feature percentile retained: 10%
+- Selected wind features: 110
+- Selected solar features: 110
 
 This allows the two models to retain different predictors based on their
 individual relationships with wind and solar energy potential.
@@ -44,17 +44,17 @@ to the original wind power proxy scale.
 
 ## Wind Power Proxy Results
 
-- MAE: 1755.2329
-- RMSE: 6175.7861
-- R² Score: 0.6799
-- Training time: 7.67 seconds
+- MAE: 3578.4148
+- RMSE: 9615.0196
+- R² Score: 0.2192
+- Training time: 3.91 seconds
 
 ## Solar Power Proxy Results
 
-- MAE: 0.5653
-- RMSE: 0.9656
-- R² Score: 0.7790
-- Training time: 6.68 seconds
+- MAE: 0.6519
+- RMSE: 1.1497
+- R² Score: 0.6937
+- Training time: 3.83 seconds
 
 ## Generated Deliverables
 
